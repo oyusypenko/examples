@@ -1,0 +1,25 @@
+.App {
+  font-family: arial;
+  text-align: center;
+}
+
+body {
+  font-family: arial;
+}
+
+.sticky-header {
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa;
+  padding: 10px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.private-book-counter {
+  font-weight: bold;
+  color: #333;
+}
