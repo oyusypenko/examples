@@ -5,11 +5,15 @@ import booksRepository from "../repositories/BooksRepository";
 import Book from "../models/Book";
 import booksController from "./BooksController";
 
-class BookFormController {
-  constructor() {
-    this.booksStore = booksStore;
-    this.booksRepository = booksRepository;
-    this.booksController = booksController;
+export class BookFormController {
+  constructor(
+    booksStoreParam = booksStore,
+    booksRepositoryParam = booksRepository,
+    booksControllerParam = booksController
+  ) {
+    this.booksStore = booksStoreParam;
+    this.booksRepository = booksRepositoryParam;
+    this.booksController = booksControllerParam;
   }
 
   toggleVisibility = () => {
@@ -43,10 +47,10 @@ class BookFormController {
         runInAction(() => {
           this.booksStore.isSubmitting = false;
           this.booksStore.showBookForm = false;
+          this.booksStore.viewMode = 'private';
         });
 
         await this.booksController.loadPrivateBooks();
-        this.booksStore.viewMode = 'private';
       } else {
         throw new Error("Failed to add book");
       }

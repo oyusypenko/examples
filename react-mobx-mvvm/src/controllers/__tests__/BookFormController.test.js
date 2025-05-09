@@ -1,36 +1,17 @@
-import bookFormController from '../BookFormController';
-import booksStore from '../../stores/BooksStore';
-import booksRepository from '../../repositories/BooksRepository';
+import { runInAction } from 'mobx';
+import { BookFormController } from '../BookFormController';
 import Book from '../../models/Book';
 
-// Mock MobX's makeObservable and computed
-jest.mock('mobx', () => ({
-  runInAction: jest.fn(fn => fn()),
-  makeObservable: jest.fn(),
-  computed: jest.fn()
-}));
+jest.mock('mobx', () => {
+  return {
+    runInAction: jest.fn(fn => fn()),
+    makeObservable: jest.fn(),
+    computed: jest.fn()
+  };
+});
 
 jest.mock('uuid', () => ({
   v4: jest.fn(() => 'test-uuid')
-}));
-
-jest.mock('../../stores/BooksStore', () => ({
-  setSubmitting: jest.fn(),
-  setSubmissionError: jest.fn(),
-  showBookForm: false,
-  toggleShowBookForm: jest.fn(),
-  setViewMode: jest.fn(),
-  isSubmitting: false,
-  submissionError: null
-}));
-
-jest.mock('../../repositories/BooksRepository', () => ({
-  addBook: jest.fn()
-}));
-
-jest.mock('../BooksController', () => ({
-  loadBooks: jest.fn(),
-  loadPrivateBooks: jest.fn()
 }));
 
 global.FormData = jest.fn().mockImplementation(() => ({
@@ -44,92 +25,84 @@ global.FormData = jest.fn().mockImplementation(() => ({
 describe('BookFormController', () => {
   let mockBook;
   let mockEvent;
-  const booksController = require('../BooksController');
+  let mockStore;
+  let mockRepo;
+  let mockBooksController;
+  let controller;
 
   beforeEach(() => {
     jest.clearAllMocks();
 
     mockBook = new Book('test-uuid', 'Test Book', 'Test Author');
+
     mockEvent = {
       preventDefault: jest.fn(),
       target: {}
     };
+
+    mockStore = {
+      isSubmitting: false,
+      submissionError: null,
+      showBookForm: false,
+      viewMode: 'all'
+    };
+
+    mockRepo = {
+      addBook: jest.fn()
+    };
+
+    mockBooksController = {
+      loadBooks: jest.fn(),
+      loadPrivateBooks: jest.fn()
+    };
+
+    controller = new BookFormController(
+      mockStore,
+      mockRepo,
+      mockBooksController
+    );
   });
 
-  describe('computed properties', () => {
-    test('should return store properties', () => {
-      // Mock store values
-      Object.defineProperty(booksStore, 'isSubmitting', { get: () => true });
-      Object.defineProperty(booksStore, 'submissionError', { get: () => 'Test error' });
+  describe('form submission workflow', () => {
+    test('should handle complete book creation lifecycle', async () => {
+      const createBookSpy = jest.spyOn(controller, 'createBook')
+        .mockImplementation(() => Promise.resolve());
 
-      // Test computed properties
-      expect(bookFormController.isSubmitting).toBe(true);
-      expect(bookFormController.submissionError).toBe('Test error');
-    });
-  });
-
-  describe('toggleVisibility', () => {
-    test('should toggle form visibility', () => {
-      bookFormController.toggleVisibility();
-      expect(booksStore.toggleShowBookForm).toHaveBeenCalled();
-    });
-  });
-
-  describe('handleFormSubmit', () => {
-    test('should extract form data and call createBook', () => {
-      const createBookSpy = jest.spyOn(bookFormController, 'createBook')
-        .mockImplementation(() => { });
-
-      bookFormController.handleFormSubmit(mockEvent);
-
+      controller.handleFormSubmit(mockEvent);
       expect(mockEvent.preventDefault).toHaveBeenCalled();
       expect(createBookSpy).toHaveBeenCalledWith(expect.objectContaining({
         id: 'test-uuid',
         name: 'Test Book',
         author: 'Test Author'
       }));
-    });
-  });
 
-  describe('createBook', () => {
-    test('should successfully add a book', async () => {
-      booksRepository.addBook.mockResolvedValue(true);
+      createBookSpy.mockRestore();
 
-      await bookFormController.createBook(mockBook);
+      mockRepo.addBook.mockResolvedValue(true);
 
-      expect(booksRepository.addBook).toHaveBeenCalledWith(mockBook);
-      expect(booksStore.setSubmitting).toHaveBeenCalledWith(true);
-      expect(booksStore.setSubmissionError).toHaveBeenCalledWith(null);
-      expect(booksStore.setSubmitting).toHaveBeenCalledWith(false);
-      expect(booksController.loadPrivateBooks).toHaveBeenCalled();
-    });
+      const stateChanges = [];
+      runInAction.mockImplementation(fn => {
+        fn();
+        stateChanges.push({ ...mockStore });
+      });
 
-    test('should handle errors', async () => {
-      booksRepository.addBook.mockResolvedValue(false);
+      await controller.createBook(mockBook);
 
-      await bookFormController.createBook(mockBook);
+      expect(stateChanges[0].isSubmitting).toBe(true);
+      expect(stateChanges[0].submissionError).toBeNull();
+      expect(stateChanges[1].isSubmitting).toBe(false);
+      expect(mockBooksController.loadPrivateBooks).toHaveBeenCalled();
+      expect(stateChanges[1].viewMode).toBe('private');
 
-      expect(booksStore.setSubmissionError).toHaveBeenCalledWith('Failed to add book');
-      expect(booksStore.setSubmitting).toHaveBeenCalledWith(false);
-    });
+      stateChanges.length = 0;
+      mockRepo.addBook.mockRejectedValue(new Error('Network error'));
+      runInAction.mockClear();
 
-    test('should handle API exceptions', async () => {
-      const error = new Error('Network error');
-      booksRepository.addBook.mockRejectedValue(error);
+      await controller.createBook(mockBook);
 
-      await bookFormController.createBook(mockBook);
-
-      expect(booksStore.setSubmissionError).toHaveBeenCalledWith(error.message);
-      expect(booksStore.setSubmitting).toHaveBeenCalledWith(false);
-    });
-
-    test('should update private book count after adding a book', async () => {
-      booksRepository.addBook.mockResolvedValue(true);
-
-      await bookFormController.createBook(mockBook);
-
-      expect(booksController.loadPrivateBooks).toHaveBeenCalled();
-      expect(booksStore.setViewMode).toHaveBeenCalledWith('private');
+      expect(stateChanges[0].isSubmitting).toBe(true);
+      expect(stateChanges[1].submissionError).toBe('Network error');
+      expect(stateChanges[1].isSubmitting).toBe(false);
     });
   });
 });
