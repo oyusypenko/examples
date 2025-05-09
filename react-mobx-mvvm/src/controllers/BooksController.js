@@ -14,7 +14,6 @@ class BooksController {
   initLoadBooks = async () => {
     if (this.booksStore.viewMode === 'all') {
       this.loadBooks();
-      this.countPrivateBooks();
     } else {
       this.loadPrivateBooks();
     }
@@ -47,14 +46,7 @@ class BooksController {
       })
 
       const privateBooks = await this.booksRepository.getPrivateBooks();
-      if (privateBooks?.length > 0) {
-        const privateBookCount = privateBooks.length;
 
-
-        runInAction(() => {
-          this.booksStore.privateBookCount = privateBookCount;
-        });
-      }
       runInAction(() => {
         this.booksStore.books = privateBooks;
         this.booksStore.isLoading = false;
@@ -63,16 +55,6 @@ class BooksController {
       runInAction(() => {
         this.booksStore.error = error.message;
         this.booksStore.isLoading = false;
-      });
-    }
-  };
-
-  countPrivateBooks = async () => {
-    const privateBooks = await this.booksRepository.getPrivateBooks();
-    if (privateBooks?.length > 0) {
-      const privateBookCount = privateBooks.length;
-      runInAction(() => {
-        this.booksStore.privateBookCount = privateBookCount;
       });
     }
   };

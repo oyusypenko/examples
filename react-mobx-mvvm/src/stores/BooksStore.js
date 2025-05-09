@@ -1,4 +1,4 @@
-import { makeObservable, observable } from 'mobx';
+import { makeObservable, observable, computed } from 'mobx';
 
 class BooksStore {
   books = [];
@@ -8,7 +8,6 @@ class BooksStore {
   submissionError = null;
   showBookForm = false;
   viewMode = 'all';
-  privateBookCount = 0;
 
   constructor() {
     makeObservable(this, {
@@ -19,8 +18,12 @@ class BooksStore {
       submissionError: observable,
       showBookForm: observable,
       viewMode: observable,
-      privateBookCount: observable,
+      privateBookCount: computed
     });
+  }
+
+  get privateBookCount() {
+    return this.books.filter(book => book.isPrivate).length;
   }
 }
 
