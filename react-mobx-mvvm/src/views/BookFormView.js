@@ -3,7 +3,7 @@ import { observer } from "mobx-react";
 import bookFormController from "../controllers/BookFormController";
 
 const BookFormView = () => {
-  const { isSubmitting, submissionError } = bookFormController;
+  const { booksStore } = bookFormController;
 
   return (
     <div>
@@ -16,7 +16,7 @@ const BookFormView = () => {
             name="name"
             type="text"
             required
-            disabled={isSubmitting}
+            disabled={booksStore.isSubmitting}
           />
         </div>
 
@@ -27,17 +27,17 @@ const BookFormView = () => {
             name="author"
             type="text"
             required
-            disabled={isSubmitting}
+            disabled={booksStore.isSubmitting}
           />
         </div>
 
-        {submissionError && <div style={{ color: "red" }}>{submissionError}</div>}
+        {booksStore.submissionError && <div style={{ color: "red" }}>{booksStore.submissionError}</div>}
 
         <div>
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Adding..." : "Add Book"}
+          <button type="submit" disabled={booksStore.isSubmitting}>
+            {booksStore.isSubmitting ? "Adding..." : "Add Book"}
           </button>
-          <button type="button" onClick={bookFormController.toggleVisibility} disabled={isSubmitting}>
+          <button type="button" onClick={bookFormController.toggleVisibility} disabled={booksStore.isSubmitting}>
             Cancel
           </button>
         </div>

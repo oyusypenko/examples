@@ -3,7 +3,7 @@ import { observer } from "mobx-react";
 import booksController from "../controllers/BooksController";
 
 const BooksSwitch = () => {
-  const { viewMode } = booksController;
+  const { booksStore } = booksController;
 
   return (
     <div>
@@ -12,7 +12,7 @@ const BooksSwitch = () => {
           type="radio"
           name="viewMode"
           value="all"
-          checked={viewMode === 'all'}
+          checked={booksStore.viewMode === 'all'}
           onChange={booksController.toggleViewMode}
         />
         All Books
@@ -22,7 +22,7 @@ const BooksSwitch = () => {
           type="radio"
           name="viewMode"
           value="private"
-          checked={viewMode === 'private'}
+          checked={booksStore.viewMode === 'private'}
           onChange={booksController.toggleViewMode}
         />
         Private Books

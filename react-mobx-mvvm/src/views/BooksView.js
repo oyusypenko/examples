@@ -6,13 +6,13 @@ import AppHeader from "./AppHeader";
 import booksController from "../controllers/BooksController";
 
 const BooksView = () => {
-  const { showBookForm } = booksController;
+  const { booksStore } = booksController;
 
   return (
     <div>
       <AppHeader />
       <div>
-        {showBookForm ? (
+        {booksStore.showBookForm ? (
           <BookFormView />
         ) : (
           <BooksListView />

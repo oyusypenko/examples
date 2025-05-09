@@ -1,33 +1,20 @@
-import { runInAction, makeObservable, computed } from "mobx";
+import { runInAction } from "mobx";
+import { v4 as uuid } from 'uuid';
 import booksStore from "../stores/BooksStore";
 import booksRepository from "../repositories/BooksRepository";
 import Book from "../models/Book";
 import booksController from "./BooksController";
-import { v4 as uuid } from 'uuid';
 
 class BookFormController {
   constructor() {
     this.booksStore = booksStore;
     this.booksRepository = booksRepository;
     this.booksController = booksController;
-
-    makeObservable(this, {
-      isSubmitting: computed,
-      submissionError: computed
-    });
-  }
-
-  get isSubmitting() {
-    return this.booksStore.isSubmitting;
-  }
-
-  get submissionError() {
-    return this.booksStore.submissionError;
   }
 
   toggleVisibility = () => {
     runInAction(() => {
-      this.booksStore.toggleShowBookForm();
+      this.booksStore.showBookForm = !this.booksStore.showBookForm;
     });
   };
 
@@ -46,27 +33,27 @@ class BookFormController {
   createBook = async (bookData) => {
     try {
       runInAction(() => {
-        this.booksStore.setSubmitting(true);
-        this.booksStore.setSubmissionError(null);
+        this.booksStore.isSubmitting = true;
+        this.booksStore.submissionError = null;
       });
 
       const result = await this.booksRepository.addBook(bookData);
 
       if (result) {
         runInAction(() => {
-          this.booksStore.setSubmitting(false);
+          this.booksStore.isSubmitting = false;
           this.booksStore.showBookForm = false;
         });
 
         await this.booksController.loadPrivateBooks();
-        await this.booksStore.setViewMode('private');
+        this.booksStore.viewMode = 'private';
       } else {
         throw new Error("Failed to add book");
       }
     } catch (error) {
       runInAction(() => {
-        this.booksStore.setSubmissionError(error.message);
-        this.booksStore.setSubmitting(false);
+        this.booksStore.submissionError = error.message;
+        this.booksStore.isSubmitting = false;
       });
     }
   };

@@ -1,4 +1,4 @@
-import { runInAction, makeObservable, computed } from "mobx";
+import { runInAction } from "mobx";
 import booksStore from "../stores/BooksStore";
 import booksRepository from "../repositories/BooksRepository";
 import bookFormController from "./BookFormController";
@@ -8,41 +8,7 @@ class BooksController {
     this.booksStore = booksStore;
     this.booksRepository = booksRepository;
     this.bookFormController = bookFormController;
-
-    makeObservable(this, {
-      books: computed,
-      isLoading: computed,
-      error: computed,
-      showBookForm: computed,
-      viewMode: computed,
-      privateBookCount: computed
-    });
-
     this.initLoadBooks();
-  }
-
-  get books() {
-    return this.booksStore.books;
-  }
-
-  get isLoading() {
-    return this.booksStore.isLoading;
-  }
-
-  get error() {
-    return this.booksStore.error;
-  }
-
-  get showBookForm() {
-    return this.booksStore.showBookForm;
-  }
-
-  get viewMode() {
-    return this.booksStore.viewMode;
-  }
-
-  get privateBookCount() {
-    return this.booksStore.privateBookCount;
   }
 
   initLoadBooks = async () => {
@@ -57,19 +23,19 @@ class BooksController {
   loadBooks = async () => {
     try {
       runInAction(() => {
-        this.booksStore.setLoading(true);
+        this.booksStore.isLoading = true;
       });
 
       const books = await this.booksRepository.getBooks();
 
       runInAction(() => {
-        this.booksStore.setBooks(books);
-        this.booksStore.setLoading(false);
+        this.booksStore.books = books;
+        this.booksStore.isLoading = false;
       });
     } catch (error) {
       runInAction(() => {
-        this.booksStore.setError(error.message);
-        this.booksStore.setLoading(false);
+        this.booksStore.error = error.message;
+        this.booksStore.isLoading = false;
       });
     }
   };
@@ -77,7 +43,7 @@ class BooksController {
   loadPrivateBooks = async () => {
     try {
       runInAction(() => {
-        this.booksStore.setLoading(true);
+        this.booksStore.isLoading = true;
       })
 
       const privateBooks = await this.booksRepository.getPrivateBooks();
@@ -86,17 +52,17 @@ class BooksController {
 
 
         runInAction(() => {
-          this.booksStore.setPrivateBookCount(privateBookCount);
+          this.booksStore.privateBookCount = privateBookCount;
         });
       }
       runInAction(() => {
-        this.booksStore.setBooks(privateBooks);
-        this.booksStore.setLoading(false);
+        this.booksStore.books = privateBooks;
+        this.booksStore.isLoading = false;
       });
     } catch (error) {
       runInAction(() => {
-        this.booksStore.setError(error.message);
-        this.booksStore.setLoading(false);
+        this.booksStore.error = error.message;
+        this.booksStore.isLoading = false;
       });
     }
   };
@@ -106,13 +72,13 @@ class BooksController {
     if (privateBooks?.length > 0) {
       const privateBookCount = privateBooks.length;
       runInAction(() => {
-        this.booksStore.setPrivateBookCount(privateBookCount);
+        this.booksStore.privateBookCount = privateBookCount;
       });
     }
   };
 
   toggleViewMode = () => {
-    this.booksStore.setViewMode(this.booksStore.viewMode === 'all' ? 'private' : 'all');
+    this.booksStore.viewMode = this.booksStore.viewMode === 'all' ? 'private' : 'all';
     if (this.booksStore.viewMode === 'private') {
       this.loadPrivateBooks();
     } else {

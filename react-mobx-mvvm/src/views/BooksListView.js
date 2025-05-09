@@ -1,11 +1,12 @@
 import React from "react";
 import { observer } from "mobx-react";
+import { v4 as uuidv4 } from 'uuid';
 import BooksSwitch from "./BooksSwitch";
 import booksController from "../controllers/BooksController";
 import bookFormController from "../controllers/BookFormController";
 
 const BooksListView = () => {
-  const { books, isLoading, error } = booksController;
+  const { booksStore } = booksController;
   const { toggleVisibility } = bookFormController;
 
   return (
@@ -14,23 +15,23 @@ const BooksListView = () => {
 
       <BooksSwitch />
 
-      {isLoading && <div>Loading books...</div>}
+      {booksStore.isLoading && <div>Loading books...</div>}
 
-      {error && <div style={{ color: "red" }}>Error: {error}</div>}
+      {booksStore.error && <div style={{ color: "red" }}>Error: {booksStore.error}</div>}
 
-      {!isLoading && !error && books.length === 0 && (
+      {!booksStore.isLoading && !booksStore.error && booksStore.books.length === 0 && (
         <div>No books available</div>
       )}
 
-      {books.map((book, i) => (
-        <div key={book.id || i}>
+      {booksStore.books.map((book) => (
+        <div key={uuidv4()}>
           {book.author}: {book.name}
         </div>
       ))}
 
       <button
         onClick={toggleVisibility}
-        disabled={isLoading}
+        disabled={booksStore.isLoading}
       >
         Add Book
       </button>
