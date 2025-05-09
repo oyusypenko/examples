@@ -1,12 +1,10 @@
 # Books Management Application
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
+- Node.js version 16.x
 
-- Node.js version 16.x is required
-
-### Installation and Setup
+## Setup
 
 ```bash
 # Install dependencies
@@ -16,18 +14,17 @@ npm install
 npm run start
 ```
 
-A React application for managing a collection of books, built with clean architecture principles and modern web development practices.
+## Overview
+
+A React application for managing books using MobX and MVVM pattern.
 
 ## Architecture
 
-This application follows the **Model-View-Presenter (MVP)** pattern, which provides clear separation of concerns and makes the codebase more maintainable and testable:
+**Model-View-ViewModel (MVVM)**:
 
-- **View**: Responsible solely for rendering the UI and capturing user interactions
-- **Controller (Presenter)**: Handles business logic and user actions from the Views
-- **Store**: Manages application state using MobX for reactivity
-- **Repository**: Abstracts data access operations from the controllers
-- **Services/Gateways**: Handle communication with external systems (API)
-- **Models**: Define the domain entities and data structures
+- **View**: React components
+- **ViewModel**: MobX stores
+- **Model**: Domain entities and repositories
 
 ## Project Structure
 
@@ -38,47 +35,30 @@ src/
 ├── repositories/    # Data access layer
 ├── services/        # External services integration
 ├── stores/          # MobX state management
-└── views/           # React components (UI only)
+└── views/           # React components
 ```
 
 ## Technologies
 
-- **React**: UI library
-- **MobX**: State management
-- **MobX-React**: React bindings for MobX
-- **Jest**: Testing framework
+- React
+- MobX
+- Jest
 
 ## Implementation Details
 
-### Reactivity
+### State Management
 
-The application uses MobX for state management, with stores containing observable state that automatically triggers UI updates when modified. The controllers manipulate this state through actions, ensuring a unidirectional data flow.
-
-### Controllers
-
-Controllers separate business logic from UI components. They:
-- Handle user actions from the view
-- Communicate with repositories to fetch or modify data
-- Update the application state in the stores
+- Observable state
+- Actions to modify state
+- Computed values
 
 ### Repository Pattern
 
-The repository pattern abstracts data access operations, allowing for:
-- Clean separation between data sources and business logic
-- Easier mocking for tests
-- Flexibility to change data sources without affecting business logic
+- Abstracts data access operations
+- Enables mocking for tests
 
 ### Testing Strategy
 
-The architecture enables thorough testing of business logic without coupling to UI components. Tests focus on:
-- Controllers: Business logic verification
-- Repositories: Data transformation and communication
-- Stores: State management
-
-## Best Practices Implemented
-
-- **Single Responsibility Principle**: Each class has a single responsibility
-- **Dependency Injection**: Dependencies are provided to classes rather than created internally
-- **Immutable State**: State is treated as immutable and only modified through actions
-- **Async Operations Handling**: Proper error handling and loading states for asynchronous operations
-- **Optimized Rendering**: Using MobX's `runInAction` to batch updates and prevent unnecessary renders
+- Stores: State management testing
+- Repositories: Data transformation testing
+- Controllers: Business logic testing
