@@ -12,40 +12,44 @@ describe('BooksRepository', () => {
     jest.clearAllMocks();
   });
 
-  it('gets books from API', async () => {
-    const books = [{ id: '1', name: 'Book 1', author: 'Author 1' }];
-    booksRepository.httpGateway.get.mockResolvedValue(books);
+  describe('data retrieval', () => {
+    test('should fetch different types of books from appropriate endpoints', async () => {
+      const publicBooks = [{ id: '1', name: 'Public Book', author: 'Author 1' }];
+      const privateBooks = [{ id: '2', name: 'Private Book', author: 'Author 2', isPrivate: true }];
 
-    const result = await booksRepository.getBooks();
+      booksRepository.httpGateway.get.mockResolvedValueOnce(publicBooks);
+      const publicResult = await booksRepository.getBooks();
+      expect(booksRepository.httpGateway.get).toHaveBeenCalledWith('/');
+      expect(publicResult).toEqual(publicBooks);
 
-    expect(booksRepository.httpGateway.get).toHaveBeenCalledWith('/');
-    expect(result).toEqual(books);
+      booksRepository.httpGateway.get.mockResolvedValueOnce(privateBooks);
+      const privateResult = await booksRepository.getPrivateBooks();
+      expect(booksRepository.httpGateway.get).toHaveBeenCalledWith('/private');
+      expect(privateResult).toEqual(privateBooks);
+
+      const error = new Error('API failure');
+      booksRepository.httpGateway.get.mockRejectedValueOnce(error);
+      await expect(booksRepository.getBooks()).rejects.toThrow('API failure');
+    });
   });
 
-  it('handles API errors in getBooks', async () => {
-    booksRepository.httpGateway.get.mockRejectedValue(new Error('Failed'));
-    await expect(booksRepository.getBooks()).rejects.toThrow();
-  });
+  describe('book creation', () => {
+    test('should handle the complete book creation workflow with success and error cases', async () => {
+      const book = { name: 'New Book', author: 'Author' };
 
-  it('adds book and returns true when successful', async () => {
-    const book = { name: 'New Book', author: 'Author' };
-    booksRepository.httpGateway.post.mockResolvedValue({ status: 'ok' });
+      booksRepository.httpGateway.post.mockResolvedValueOnce({ status: 'ok' });
+      expect(await booksRepository.addBook(book)).toBe(true);
+      expect(booksRepository.httpGateway.post).toHaveBeenCalledWith('/', book);
 
-    const result = await booksRepository.addBook(book);
+      booksRepository.httpGateway.post.mockResolvedValueOnce({ status: 'error' });
+      expect(await booksRepository.addBook(book)).toBe(false);
 
-    expect(result).toBe(true);
-    expect(booksRepository.httpGateway.post).toHaveBeenCalledWith('/', book);
-  });
+      booksRepository.httpGateway.post.mockResolvedValueOnce(null);
+      expect(await booksRepository.addBook(book)).toBe(false);
 
-  it('returns false when API returns error status', async () => {
-    const book = { name: 'New Book', author: 'Author' };
-    booksRepository.httpGateway.post.mockResolvedValue({ status: 'error' });
-
-    expect(await booksRepository.addBook(book)).toBe(false);
-  });
-
-  it('returns false when API returns null', async () => {
-    booksRepository.httpGateway.post.mockResolvedValue(null);
-    expect(await booksRepository.addBook({})).toBe(false);
+      const error = new Error('Connection error');
+      booksRepository.httpGateway.post.mockRejectedValueOnce(error);
+      await expect(booksRepository.addBook(book)).rejects.toThrow('Connection error');
+    });
   });
 });
