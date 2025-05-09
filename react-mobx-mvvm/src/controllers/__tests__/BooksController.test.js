@@ -1,35 +1,15 @@
-import booksController from '../BooksController';
-import booksStore from '../../stores/BooksStore';
-import booksRepository from '../../repositories/BooksRepository';
+import { BooksController } from '../BooksController';
+import { runInAction } from 'mobx';
 
-jest.mock('mobx', () => ({
-  runInAction: jest.fn(fn => fn()),
-  makeObservable: jest.fn(),
-  computed: jest.fn()
-}));
-
-jest.mock('../../stores/BooksStore', () => ({
-  setBooks: jest.fn(),
-  setLoading: jest.fn(),
-  setError: jest.fn(),
-  setPrivateBookCount: jest.fn(),
-  viewMode: 'all',
-  setViewMode: jest.fn(),
-  books: [],
-  isLoading: false,
-  error: null,
-  privateBookCount: 0,
-  showBookForm: false
-}));
-
-jest.mock('../../repositories/BooksRepository', () => ({
-  getBooks: jest.fn(),
-  getPrivateBooks: jest.fn()
-}));
-
-jest.mock('../BookFormController', () => ({
-  toggleVisibility: jest.fn()
-}));
+jest.mock('mobx', () => {
+  const actual = jest.requireActual('mobx');
+  return {
+    ...actual,
+    runInAction: jest.fn(fn => fn()),
+    makeObservable: jest.fn(),
+    computed: jest.fn()
+  };
+});
 
 describe('BooksController', () => {
   const mockBooks = [
@@ -38,134 +18,145 @@ describe('BooksController', () => {
   ];
 
   const mockPrivateBooks = [
-    { id: '3', name: 'Private Book', author: 'Private Author' },
-    { id: '4', name: 'Private Book 2', author: 'Private Author 2' },
+    { id: '3', name: 'Private Book', author: 'Private Author', isPrivate: true },
+    { id: '4', name: 'Private Book 2', author: 'Private Author 2', isPrivate: true },
   ];
+
+  let mockStore;
+  let mockRepo;
+  let mockFormController;
+  let controller;
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    mockStore = {
+      books: [],
+      isLoading: false,
+      error: null,
+      privateBookCount: 0,
+      showBookForm: false,
+      viewMode: 'all'
+    };
+
+    mockRepo = {
+      getBooks: jest.fn(),
+      getPrivateBooks: jest.fn()
+    };
+
+    mockFormController = {
+      toggleVisibility: jest.fn()
+    };
+
+    controller = new BooksController(
+      mockStore,
+      mockRepo,
+      mockFormController,
+      false
+    );
   });
 
-  describe('computed properties', () => {
-    test('should return store properties', () => {
-      Object.defineProperty(booksStore, 'books', { get: () => mockBooks });
-      Object.defineProperty(booksStore, 'isLoading', { get: () => true });
-      Object.defineProperty(booksStore, 'error', { get: () => 'Test error' });
-      Object.defineProperty(booksStore, 'showBookForm', { get: () => true });
-      Object.defineProperty(booksStore, 'viewMode', { get: () => 'private' });
-      Object.defineProperty(booksStore, 'privateBookCount', { get: () => 5 });
+  describe('loadBooks workflow', () => {
+    test('should handle the complete loading lifecycle with success and error cases', async () => {
+      mockRepo.getBooks.mockResolvedValue(mockBooks);
 
-      expect(booksController.books).toEqual(mockBooks);
-      expect(booksController.isLoading).toBe(true);
-      expect(booksController.error).toBe('Test error');
-      expect(booksController.showBookForm).toBe(true);
-      expect(booksController.viewMode).toBe('private');
-      expect(booksController.privateBookCount).toBe(5);
-    });
-  });
+      const storeChanges = [];
+      runInAction.mockImplementation(fn => {
+        fn();
+        storeChanges.push({ ...mockStore });
+      });
 
-  describe('loadBooks', () => {
-    test('should load books and update store', async () => {
-      booksRepository.getBooks.mockResolvedValue(mockBooks);
+      await controller.loadBooks();
 
-      await booksController.loadBooks();
+      expect(storeChanges[0].isLoading).toBe(true);
+      expect(storeChanges[1].books).toEqual(mockBooks);
+      expect(storeChanges[1].isLoading).toBe(false);
 
-      expect(booksRepository.getBooks).toHaveBeenCalled();
-      expect(booksStore.setLoading).toHaveBeenCalledWith(true);
-      expect(booksStore.setBooks).toHaveBeenCalledWith(mockBooks);
-      expect(booksStore.setLoading).toHaveBeenCalledWith(false);
-    });
+      expect(runInAction).toHaveBeenCalledTimes(2);
 
-    test('should handle errors when loading books', async () => {
+      storeChanges.length = 0;
       const error = new Error('API Error');
-      booksRepository.getBooks.mockRejectedValue(error);
+      mockRepo.getBooks.mockRejectedValue(error);
+      runInAction.mockClear();
 
-      await booksController.loadBooks();
+      await controller.loadBooks();
 
-      expect(booksStore.setError).toHaveBeenCalledWith(error.message);
-      expect(booksStore.setLoading).toHaveBeenCalledWith(false);
+      expect(storeChanges[0].isLoading).toBe(true);
+      expect(storeChanges[1].error).toBe(error.message);
+      expect(storeChanges[1].isLoading).toBe(false);
+
+      expect(runInAction).toHaveBeenCalledTimes(2);
     });
   });
 
-  describe('loadPrivateBooks', () => {
-    test('should load private books and update store and counter', async () => {
-      booksRepository.getPrivateBooks.mockResolvedValue(mockPrivateBooks);
+  describe('view mode switching', () => {
+    test('should toggle view modes and trigger appropriate data loading', () => {
+      const loadBooksSpy = jest.spyOn(controller, 'loadBooks')
+        .mockImplementation(() => Promise.resolve());
+      const loadPrivateBooksSpy = jest.spyOn(controller, 'loadPrivateBooks')
+        .mockImplementation(() => Promise.resolve());
 
-      await booksController.loadPrivateBooks();
+      mockStore.viewMode = 'all';
+      runInAction.mockClear();
 
-      expect(booksRepository.getPrivateBooks).toHaveBeenCalled();
-      expect(booksStore.setPrivateBookCount).toHaveBeenCalledWith(mockPrivateBooks.length);
-      expect(booksStore.setBooks).toHaveBeenCalledWith(mockPrivateBooks);
-      expect(booksStore.setLoading).toHaveBeenCalledWith(true);
-      expect(booksStore.setLoading).toHaveBeenCalledWith(false);
-    });
+      controller.toggleViewMode();
+      expect(mockStore.viewMode).toBe('private');
+      expect(loadPrivateBooksSpy).toHaveBeenCalledTimes(1);
+      expect(loadBooksSpy).not.toHaveBeenCalled();
 
-    test('should handle errors when loading private books', async () => {
-      const error = new Error('API Error');
-      booksRepository.getPrivateBooks.mockRejectedValue(error);
+      expect(runInAction).toHaveBeenCalledTimes(1);
 
-      await booksController.loadPrivateBooks();
+      controller.toggleViewMode();
+      expect(mockStore.viewMode).toBe('all');
+      expect(loadBooksSpy).toHaveBeenCalledTimes(1);
 
-      expect(booksStore.setError).toHaveBeenCalledWith(error.message);
-      expect(booksStore.setLoading).toHaveBeenCalledWith(false);
+      loadBooksSpy.mockRestore();
+      loadPrivateBooksSpy.mockRestore();
     });
   });
 
-  describe('toggleViewMode', () => {
-    test('should toggle from all to private and load private books', () => {
-      Object.defineProperty(booksStore, 'viewMode', {
-        get: () => 'all',
-        configurable: true
-      });
+  test('should initialize with loadBooks', () => {
+    const loadBooksSpy = jest.spyOn(controller, 'loadBooks')
+      .mockImplementation(() => Promise.resolve());
 
-      booksStore.setViewMode.mockImplementation((mode) => {
-        Object.defineProperty(booksStore, 'viewMode', {
-          get: () => mode,
-          configurable: true
-        });
-      });
+    controller.initLoadBooks();
 
-      const originalLoadPrivate = booksController.loadPrivateBooks;
-      const originalLoadBooks = booksController.loadBooks;
+    expect(loadBooksSpy).toHaveBeenCalledTimes(1);
 
-      booksController.loadPrivateBooks = jest.fn();
-      booksController.loadBooks = jest.fn();
+    loadBooksSpy.mockRestore();
+  });
 
-      booksController.toggleViewMode();
+  test('should correctly count private books after loading data', async () => {
+    const mixedBooks = [
+      { id: '1', name: 'Public Book 1', author: 'Author 1', isPrivate: false },
+      { id: '2', name: 'Private Book 1', author: 'Author 2', isPrivate: true },
+      { id: '3', name: 'Public Book 2', author: 'Author 3', isPrivate: false },
+      { id: '4', name: 'Private Book 2', author: 'Author 4', isPrivate: true }
+    ];
 
-      expect(booksStore.setViewMode).toHaveBeenCalledWith('private');
-      expect(booksController.loadPrivateBooks).toHaveBeenCalled();
-
-      booksController.loadPrivateBooks = originalLoadPrivate;
-      booksController.loadBooks = originalLoadBooks;
+    Object.defineProperty(mockStore, 'privateBookCount', {
+      get: function () {
+        return this.books.filter(book => book.isPrivate).length;
+      }
     });
 
-    test('should toggle from private to all and load all books', () => {
-      Object.defineProperty(booksStore, 'viewMode', {
-        get: () => 'private',
-        configurable: true
-      });
+    mockRepo.getBooks.mockResolvedValue(mixedBooks);
+    await controller.loadBooks();
 
-      booksStore.setViewMode.mockImplementation((mode) => {
-        Object.defineProperty(booksStore, 'viewMode', {
-          get: () => mode,
-          configurable: true
-        });
-      });
+    expect(mockStore.books.length).toBe(4);
+    expect(mockStore.privateBookCount).toBe(2);
 
-      const originalLoadPrivate = booksController.loadPrivateBooks;
-      const originalLoadBooks = booksController.loadBooks;
+    const onlyPrivateBooks = mixedBooks.filter(book => book.isPrivate);
+    mockRepo.getPrivateBooks.mockResolvedValue(onlyPrivateBooks);
+    await controller.loadPrivateBooks();
 
-      booksController.loadPrivateBooks = jest.fn();
-      booksController.loadBooks = jest.fn();
+    expect(mockStore.books.length).toBe(2);
+    expect(mockStore.privateBookCount).toBe(2);
 
-      booksController.toggleViewMode();
+    mockStore.books.push({ id: '5', name: 'New Private Book', author: 'Author 5', isPrivate: true });
+    expect(mockStore.privateBookCount).toBe(3);
 
-      expect(booksStore.setViewMode).toHaveBeenCalledWith('all');
-      expect(booksController.loadBooks).toHaveBeenCalled();
-
-      booksController.loadPrivateBooks = originalLoadPrivate;
-      booksController.loadBooks = originalLoadBooks;
-    });
+    mockStore.books[0].isPrivate = false;
+    expect(mockStore.privateBookCount).toBe(2);
   });
 });

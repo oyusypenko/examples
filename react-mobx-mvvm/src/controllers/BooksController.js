@@ -3,12 +3,20 @@ import booksStore from "../stores/BooksStore";
 import booksRepository from "../repositories/BooksRepository";
 import bookFormController from "./BookFormController";
 
-class BooksController {
-  constructor() {
-    this.booksStore = booksStore;
-    this.booksRepository = booksRepository;
-    this.bookFormController = bookFormController;
-    this.initLoadBooks();
+export class BooksController {
+  constructor(
+    booksStoreParam = booksStore,
+    booksRepositoryParam = booksRepository,
+    bookFormControllerParam = bookFormController,
+    initializeOnCreate = true
+  ) {
+    this.booksStore = booksStoreParam;
+    this.booksRepository = booksRepositoryParam;
+    this.bookFormController = bookFormControllerParam;
+
+    if (initializeOnCreate) {
+      this.initLoadBooks();
+    }
   }
 
   initLoadBooks = async () => {
@@ -60,7 +68,10 @@ class BooksController {
   };
 
   toggleViewMode = () => {
-    this.booksStore.viewMode = this.booksStore.viewMode === 'all' ? 'private' : 'all';
+    runInAction(() => {
+      this.booksStore.viewMode = this.booksStore.viewMode === 'all' ? 'private' : 'all';
+    });
+
     if (this.booksStore.viewMode === 'private') {
       this.loadPrivateBooks();
     } else {
